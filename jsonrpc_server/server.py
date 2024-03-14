@@ -33,8 +33,16 @@ class JSONRPCServer(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
 
-        response, status_code = self.process_request(post_data)
-
+        result = self.process_request(post_data)
+        
+        # Check if the result is None (indicating a notification) and skip sending a response
+        if result is None:
+            self.send_response(204)  # 204 No Content
+            self.end_headers()
+            return
+        
+        # Otherwise, unpack the response and status code and send them as usual
+        response, status_code = result
         self.send_response(status_code)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
@@ -45,14 +53,17 @@ class JSONRPCServer(BaseHTTPRequestHandler):
         try:
             json_data = self.parse_request_data(data)
             self.validate_jsonrpc_version(json_data)
-            self.handle_notification(json_data)
+            if 'id' not in json_data:  # It's a notification
+                self.handle_notification(json_data)
+                return None  # No response for notifications
 
             method, params = self.get_method_and_params(json_data)
             result = self.invoke_method(method, params, json_data)
             return self.success_response(result, json_data['id'])
         except JSONRPCException as e:
-            return self.error_response(e.code, e.message, json_data.get('id'))
-
+            json_id = None if 'json_data' not in locals() else json_data.get('id')
+            return self.error_response(e.code, e.message, json_id)  
+        
     def parse_request_data(self, data):
         """Parse the request data."""
         try:
@@ -66,12 +77,10 @@ class JSONRPCServer(BaseHTTPRequestHandler):
             raise JSONRPCException(-32600, "Invalid Request: JSON-RPC version must be '2.0'", json_data.get('id'))
 
     def handle_notification(self, json_data):
-        """Handle JSON-RPC notifications."""
-        if 'id' not in json_data:
-            method_name = json_data.get('method')
-            if method_name in self.methods:
-                self.methods[method_name](**json_data.get('params', {}))
-            raise JSONRPCNotification()
+        """Execute the method for a JSON-RPC notification."""
+        method_name = json_data.get('method')
+        if method_name in self.methods:
+            self.methods[method_name](**json_data.get('params', {}))
 
     def get_method_and_params(self, json_data):
         """Get the method and params from the JSON-RPC request."""
