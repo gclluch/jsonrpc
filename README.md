@@ -15,7 +15,7 @@ A lightweight, easy-to-use JSON-RPC 2.0 server implementation in Python, designe
 To install the JSON-RPC Server, simply use pip:
 
 ```bash
-pip install git+https://github.com/gclluch/jsonrpc-server.git
+pip install jsonrpc-server-py
 ```
 
 ## Quick Start
@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
 ## Example
 
-Request: 
+Request:
 
 ```bash
 {
