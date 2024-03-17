@@ -7,7 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='jsonrpc-server-py',
-    version='0.1',
+    version='0.2.0',
     packages=find_packages(),
     description='A simple JSON-RPC server',
     long_description=long_description,

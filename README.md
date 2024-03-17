@@ -10,6 +10,8 @@ A lightweight, easy-to-use JSON-RPC 2.0 server implementation in Python, designe
 - Built-in support for notifications (requests without response).
 - Easy integration into existing Python applications.
 
+Refer here for details: https://www.jsonrpc.org/specification
+
 ## Installation
 
 To install the JSON-RPC Server, simply use pip:
