@@ -77,6 +77,28 @@ def test_notification_support():
     ({"a": 42, "b": 23})  # named arguments
 ])
 def test_parameter_structures(params):
+    # Test with positional and named parameters
     response = post_json_rpc("sum", params=params, id=1)
     assert response.status_code == 200
     assert response.json()["result"] == 65, "Server should correctly sum the parameters."
+
+
+def test_batch_requests():
+    # Test a batch of requests
+    batch_data = [
+        {"jsonrpc": "2.0", "method": "sum", "params": [2, 3], "id": 1},
+        {"jsonrpc": "2.0", "method": "hello", "params": ["World"], "id": 2},
+        {"jsonrpc": "2.0", "method": "ping"},  # Notification
+    ]
+
+    response = requests.post(SERVER_URL, json=batch_data, headers={'Content-Type': 'application/json'})
+    assert response.status_code == 200
+
+    responses = json.loads(response.text)
+    assert len(responses) == 2  # Only responses with IDs are included
+
+
+    print(responses)
+    print(type(responses[0]))
+    assert responses[0]["result"] == 5  # Use integer index 0
+    assert responses[1]["result"] == "Hello, World!"  # Use integer index 1
