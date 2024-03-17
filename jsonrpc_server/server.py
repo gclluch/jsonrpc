@@ -33,7 +33,17 @@ class JSONRPCServer(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
 
-        result = self.process_request(post_data)
+        try: 
+            json_data = self.parse_request_data(post_data)
+            if isinstance(json_data, list):  # Check if it's a batch request
+                result = self.process_batch_request(json_data)  # Call process_batch_request
+            else:
+                result = self.process_request(json_data)
+
+        except JSONRPCException as e:
+            json_id = None if 'json_data' not in locals() else json_data.get('id')
+            result = self.error_response(e.code, e.message, json_id) 
+        
         
         # Check if the result is None (indicating a notification) and skip sending a response
         if result is None:
@@ -48,10 +58,10 @@ class JSONRPCServer(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(response.encode('utf-8'))
 
-    def process_request(self, data):
+    def process_request(self, json_data):
         """Process the JSON-RPC request."""
         try:
-            json_data = self.parse_request_data(data)
+            # json_data = selfz.parse_request_data(data)
             self.validate_jsonrpc_version(json_data)
             if 'id' not in json_data:  # It's a notification
                 self.handle_notification(json_data)
@@ -63,7 +73,28 @@ class JSONRPCServer(BaseHTTPRequestHandler):
         except JSONRPCException as e:
             json_id = None if 'json_data' not in locals() else json_data.get('id')
             return self.error_response(e.code, e.message, json_id)  
-        
+    
+    def process_batch_request(self, requests):
+        """Process a batch of JSON-RPC requests."""
+        responses = []
+        for request in requests:
+            try:
+                self.validate_jsonrpc_version(request)
+                if 'id' not in request:  # It's a notification
+                    self.handle_notification(request)
+                    continue  # No response for notifications
+
+                method, params = self.get_method_and_params(request)
+                result = self.invoke_method(method, params, request)
+                response_object = json.loads(self.success_response(result, request['id'])[0])  # Parse JSON string back to dict
+                responses.append(response_object)  # Append the response object directly
+            except JSONRPCException as e:
+                json_id = request.get('id')
+                error_response_object = json.loads(self.error_response(e.code, e.message, json_id)[0])  # Parse JSON string back to dict
+                responses.append(error_response_object)
+
+        return json.dumps(responses), 200  # Return all responses as a JSON array
+    
     def parse_request_data(self, data):
         """Parse the request data."""
         try:
